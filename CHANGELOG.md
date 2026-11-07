@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Model picker for ACP agents (fork of batrachianai/toad, 2026-11-07): reads the `model` category from Session Config Options (or the legacy `models` field), switches via `session/set_config_option` (or `session/set_model`), shown as a pill next to the prompt, opened with ctrl+l or by clicking the pill
+- Mode picker for ACP agents that only advertise modes via Session Config Options (e.g. OpenCode build/plan): reads the `mode` category, switches via `session/set_config_option` (or `session/set_mode`), shown as the existing mode pill, opened with ctrl+o
 
 ### Changed
 
