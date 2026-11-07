@@ -1,7 +1,7 @@
 [project]
 name = "batrachian-toad"
 version = "0.6.20"
-description = "Unofficial fork of Toad (batrachianai/toad) with a model picker for ACP agents. A unified experience for AI in your terminal."
+description = "Unofficial fork of Toad (batrachianai/toad) with model/mode pickers, a Changes view and a file viewer for ACP agents. A unified experience for AI in your terminal."
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
@@ -26,6 +26,7 @@ dependencies = [
     "textual-diff-view==0.1.5",
     "typing-extensions==4.15.0",
     "format-currency>=0.0.10",
+    "tree-sitter-typescript==0.23.2",
 ]
 
 [tool.uv.workspace]

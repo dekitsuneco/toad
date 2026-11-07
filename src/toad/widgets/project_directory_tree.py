@@ -5,6 +5,7 @@ import asyncio
 
 from textual import work
 from textual.binding import Binding
+from textual.message import Message
 from textual.widgets import DirectoryTree
 from textual.widgets.directory_tree import DirEntry
 
@@ -19,8 +20,15 @@ class ProjectDirectoryTree(DirectoryTree):
 This shows the files in your project directory.
 
 - **cursor keys** navigation
-- **Enter** expand folder
+- **Enter** expand folder, or view / edit file
+- **a** add the file to the prompt
 """
+
+    class AddToPrompt(Message):
+        def __init__(self, path: Path) -> None:
+            self.path = path
+            super().__init__()
+
     BINDINGS = [
         Binding(
             "ctrl+c",
@@ -30,6 +38,13 @@ This shows the files in your project directory.
             show=False,
         ),
         Binding("ctrl+r", "refresh", "Refresh", tooltip="Refresh file view", show=True),
+        Binding(
+            "a",
+            "add_to_prompt",
+            "Add to prompt",
+            tooltip="Add file to the prompt",
+            priority=True,
+        ),
     ]
 
     def __init__(
@@ -83,6 +98,10 @@ This shows the files in your project directory.
                     yield path
         else:
             yield from paths
+
+    def action_add_to_prompt(self) -> None:
+        if (node := self.cursor_node) is not None and node.data is not None:
+            self.post_message(self.AddToPrompt(Path(node.data.path)))
 
     @work
     async def action_refresh(self) -> None:
