@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Session tabs show the title the agent sends (`session_info_update`), or the first prompt when it doesn't. Double-click a tab (or `/toad:rename`) to rename it; a manual name is kept. Tabs are prefixed with a small glyph for the agent
 - File viewer: clicking a file in the project tree opens it with syntax highlighting (including TypeScript and TSX), editing, ctrl+s to save, and the git blame of the current line. ctrl+t adds the file to the prompt, ctrl+o opens it in `$EDITOR` or Cursor, and `a` in the tree adds a file without opening it
 
+### Fixed
+
+- Escape closes the file viewer. The editor was handling the key itself, so the screen never saw it. A second escape discards unsaved edits
+
 ### Changed
 
 - The mode pill follows Cursor's `switch_mode` tool (e.g. Plan → Agent after a plan is approved), which Cursor reports without `current_mode_update`
