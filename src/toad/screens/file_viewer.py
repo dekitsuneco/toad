@@ -94,7 +94,9 @@ class FileViewerScreen(Screen[Path | None]):
 
     BINDING_GROUP_TITLE = "File"
     BINDINGS = [
-        Binding("escape", "close", "Close"),
+        # Priority: TextArea consumes escape itself (it moves focus) and the
+        # key never reaches a normal screen binding.
+        Binding("escape", "close", "Close", priority=True),
         Binding("ctrl+s", "save", "Save"),
         Binding("ctrl+t", "add_to_prompt", "Add to prompt"),
         Binding("ctrl+o", "open_external", "Open in editor"),
