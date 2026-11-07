@@ -254,7 +254,14 @@ SCHEMA: list[SchemaDict] = [
                     ("Fail only", "fail"),
                     ("Fail and success", "both"),
                 ],
-            }
+            },
+            {
+                "key": "expand_diffs",
+                "title": "Expand file edits?",
+                "help": "Show diffs of edited files without having to expand the tool call (unless tool call expand is Never).",
+                "type": "boolean",
+                "default": True,
+            },
         ],
     },
     {
