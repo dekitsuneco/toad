@@ -63,6 +63,7 @@ class ToolCall(containers.VerticalGroup):
 
     app = getters.app(ToadApp)
     has_content: var[bool] = var(False, toggle_class="-has-content")
+    has_diff: var[bool] = var(False)
     expanded: var[bool] = var(False, toggle_class="-expanded")
     tool_call: var[protocol.ToolCall | None] = var(None)
 
@@ -120,6 +121,7 @@ class ToolCall(containers.VerticalGroup):
         self.set_class(tool_call.get("status") == "failed", "-failed")
 
         self.has_content = False
+        self.has_diff = False
         content_update = list(self._compose_content(content))
 
         yield ToolCallHeader(self.tool_call_header_content, markup=False).with_tooltip(
@@ -143,7 +145,13 @@ class ToolCall(containers.VerticalGroup):
             return
         tool_call_expand = self.app.settings.get("tools.expand", str, expand=False)
         status = tool_call.get("status")
-        if tool_call_expand == "always":
+        if (
+            self.has_diff
+            and tool_call_expand != "never"
+            and self.app.settings.get("tools.expand_diffs", bool)
+        ):
+            self.expanded = True
+        elif tool_call_expand == "always":
             self.expanded = True
         elif tool_call_expand != "never" and status is not None:
             if tool_call_expand == "success":
@@ -253,6 +261,7 @@ class ToolCall(containers.VerticalGroup):
                         diff_view.auto_split = diff_view_setting == "auto"
 
                     self.has_content = True
+                    self.has_diff = True
 
                 case {"type": "terminal", "terminalId": terminal_id}:
                     pass
