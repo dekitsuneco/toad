@@ -118,6 +118,15 @@ class SessionUpdate(Message):
     """Project directory path."""
     state: SessionState | None = None
     """New session state."""
+    agent: str | None = None
+    """Agent identity."""
+
+
+@dataclass
+class SessionRename(Message):
+    """The user asked to rename a session."""
+
+    mode_name: str
 
 
 @dataclass

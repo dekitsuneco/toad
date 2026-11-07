@@ -409,6 +409,10 @@ class Conversation(containers.Vertical):
 
         self._post_lock = asyncio.Lock()
 
+        self._session_title: str | None = None
+        self._session_title_locked = False
+        """The user (or a saved session) picked the title, so the agent may not replace it."""
+
     def update_title(self) -> None:
         """Update the screen title."""
 
@@ -423,6 +427,55 @@ class Conversation(containers.Vertical):
         if self._agent_data is not None:
             return self._agent_data["name"]
         return None
+
+    @property
+    def agent_identity(self) -> str | None:
+        if self._agent_data is not None:
+            return self._agent_data["identity"]
+        return None
+
+    async def set_session_title(
+        self, title: str, *, lock: bool = False, save: bool = True
+    ) -> bool:
+        """Set the session title (shown in the session tab).
+
+        Args:
+            title: New title.
+            lock: Prevent automatic titles from replacing this one.
+            save: Store the title in the session history.
+
+        Returns:
+            `True` if the title was changed.
+        """
+        if self._session_title_locked and not lock:
+            return False
+        self._session_title = title
+        self._session_title_locked = self._session_title_locked or lock
+        if save and self.agent is not None:
+            await self.agent.set_session_name(title)
+        self.post_message(messages.SessionUpdate(name=title))
+        return True
+
+    @on(messages.SessionRename)
+    @work
+    async def on_session_rename(self, message: messages.SessionRename) -> None:
+        from toad.screens.rename_modal import RenameModal
+
+        message.stop()
+        if message.mode_name != self.screen.id:
+            return
+        if name := await self.app.push_screen_wait(
+            RenameModal(self._session_title or "")
+        ):
+            await self.set_session_title(name, lock=True)
+            self.flash(f"Renamed session to [b]'{name}'", style="success")
+
+    @on(acp_messages.SessionTitle)
+    async def on_acp_session_title(self, message: acp_messages.SessionTitle) -> None:
+        message.stop()
+        await self.set_session_title(
+            message.title, lock=message.saved, save=not message.saved
+        )
 
     @property
     def is_watching_directory(self) -> bool:
@@ -829,6 +882,11 @@ class Conversation(containers.Vertical):
             if text.startswith("/") and await self.slash_command(text):
                 # Toad has processed the slash command.
                 return
+            if self._session_title is None:
+                first_line = text.splitlines()[0].strip()
+                if len(first_line) > 40:
+                    first_line = first_line[:39].rstrip() + "…"
+                await self.set_session_title(first_line)
             await self.post(UserInput(text))
             self.window.scroll_end(animate=False)
             self._loading = await self.post(Loading("Please wait..."), loading=True)
@@ -1460,7 +1518,11 @@ class Conversation(containers.Vertical):
                 )
                 await self.agent.start(self)
                 self.post_message(
-                    messages.SessionUpdate("New Session", self.agent_title)
+                    messages.SessionUpdate(
+                        self._session_title or "New Session",
+                        self.agent_title,
+                        agent=self.agent_identity,
+                    )
                 )
 
             self.call_after_refresh(start_agent)
@@ -1980,10 +2042,8 @@ class Conversation(containers.Vertical):
                     severity="error",
                 )
                 return True
-            if self.agent is not None:
-                await self.agent.set_session_name(name)
-                self.post_message(messages.SessionUpdate(name=name))
-                self.flash(f"Renamed session to [b]'{name}'", style="success")
+            await self.set_session_title(name, lock=True)
+            self.flash(f"Renamed session to [b]'{name}'", style="success")
             return True
         elif command == "toad:plan":
             from toad.widgets.markdown_note import MarkdownNote

@@ -316,6 +316,11 @@ class Agent(AgentBase):
             case {"sessionUpdate": "plan", "entries": entries}:
                 self.post_message(messages.Plan(entries))
 
+            case {"sessionUpdate": "session_info_update", "title": str(title)} if (
+                title.strip()
+            ):
+                self.post_message(messages.SessionTitle(title.strip()))
+
             case {
                 "sessionUpdate": "tool_call_update",
                 "toolCallId": tool_call_id,
@@ -855,6 +860,10 @@ class Agent(AgentBase):
         if self.session_pk is not None:
             db = DB()
             if (session := await db.session_get(self.session_pk)) is not None:
+                if session["title"] and session["title"] != "New Session":
+                    self.post_message(
+                        messages.SessionTitle(session["title"], saved=True)
+                    )
                 if session["meta_json"]:
                     meta = json.loads(session["meta_json"])
                     if session_cwd := meta.get("cwd", None):

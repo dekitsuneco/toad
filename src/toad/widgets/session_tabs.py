@@ -21,11 +21,34 @@ from toad.session_tracker import SessionDetails
 from toad import messages
 
 
+AGENT_BADGES: dict[str, tuple[str, str]] = {
+    "cursor.com": ("◆", "$text"),
+    "opencode.ai": ("▣", "$text"),
+    "claude.com": ("✻", "#D97757"),
+    "openai.com": ("◎", "#10A37F"),
+    "geminicli.com": ("✦", "#4796E3"),
+    "copilot.github.com": ("◉", "#8957E5"),
+    "grok.x.ai": ("✕", "$text"),
+}
+"""Glyph and color shown before session titles, by agent identity."""
+
+
+def agent_badge(identity: str) -> Content:
+    if not identity:
+        return Content()
+    glyph, color = AGENT_BADGES.get(identity, ("●", "$text-muted"))
+    return Content.styled(glyph + " ", f"not dim {color}")
+
+
 class SessionLabel(widgets.Label):
     ALLOW_SELECT = False
 
-    def on_click(self) -> None:
-        if self.id is not None:
+    def on_click(self, event: events.Click) -> None:
+        if self.id is None:
+            return
+        if event.chain >= 2:
+            self.post_message(messages.SessionRename(self.id))
+        else:
             self.post_message(messages.SessionSwitch(self.id))
 
 
@@ -136,14 +159,15 @@ class SessionsTabs(Widget):
                 self.scroll_to_center(current_label, animate=False)
 
     def render_session_label(self, session: SessionDetails) -> Content:
+        badge = agent_badge(session.agent)
         match session.state:
             case "asking":
                 return Content.assemble(
-                    ("❯ ", "not dim $text-secondary"), session.title
+                    ("❯ ", "not dim $text-secondary"), badge, session.title
                 )
             case "busy":
-                return Content(f"⌛ {session.title}")
-        return Content(session.title)
+                return Content.assemble("⌛ ", badge, session.title)
+        return Content.assemble(badge, session.title)
 
     def compose(self) -> ComposeResult:
         with containers.HorizontalGroup(id="title-container"):

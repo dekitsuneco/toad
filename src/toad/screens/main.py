@@ -211,6 +211,7 @@ class MainScreen(Screen, can_focus=False):
                 subtitle=event.subtitle,
                 path=event.path,
                 state=event.state,
+                agent=event.agent,
             )
 
     @on(messages.SessionClose)
