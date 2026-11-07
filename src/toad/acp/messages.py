@@ -59,6 +59,14 @@ class Plan(AgentMessage):
 
 
 @dataclass
+class CreatePlan(AgentMessage):
+    """The agent asks the user to approve a plan (Cursor extension)."""
+
+    markdown: str
+    result_future: Future[bool]
+
+
+@dataclass
 class ToolCall(AgentMessage):
     tool_call: protocol.ToolCall
 

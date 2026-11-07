@@ -4,7 +4,9 @@ from contextlib import suppress
 from datetime import datetime
 import json
 import os
+import re
 from pathlib import Path
+from urllib.parse import unquote, urlparse
 from typing import Any, cast, NamedTuple
 from copy import deepcopy
 from math import floor
@@ -30,6 +32,8 @@ from toad import constants
 from toad.answer import Answer
 
 PROTOCOL_VERSION = 1
+
+PLAN_SAVED_RE = re.compile(r"Plan saved to (file://\S+)")
 
 
 class Mode(NamedTuple):
@@ -136,6 +140,8 @@ class Agent(AgentBase):
         self.session_id = session_id
         self._model_config_id: str | None = None
         self._mode_config_id: str | None = None
+        self._plan_markdown: str | None = None
+        self._plan_path: Path | None = None
 
         self.server = jsonrpc.Server()
         self.server.expose_instance(self)
@@ -305,6 +311,7 @@ class Agent(AgentBase):
             }:
                 self.tool_calls[tool_call_id] = update
                 self.post_message(messages.ToolCall(update))
+                self._follow_tool_call(update)
 
             case {"sessionUpdate": "plan", "entries": entries}:
                 self.post_message(messages.Plan(entries))
@@ -322,6 +329,7 @@ class Agent(AgentBase):
                     self.post_message(
                         messages.ToolCallUpdate(deepcopy(current_tool_call), update)
                     )
+                    self._follow_tool_call(current_tool_call)
                 else:
                     # The agent can send a tool call update, without previously sending the tool call *rolls eyes*
                     current_tool_call: protocol.ToolCall = {
@@ -335,6 +343,7 @@ class Agent(AgentBase):
 
                     self.tool_calls[tool_call_id] = current_tool_call
                     self.post_message(messages.ToolCall(current_tool_call))
+                    self._follow_tool_call(current_tool_call)
 
             case {
                 "sessionUpdate": "available_commands_update",
@@ -360,6 +369,68 @@ class Agent(AgentBase):
                     case _:
                         self._context_usage = ContextUsage(used, size)
                 self.update_status_line()
+
+    def _follow_tool_call(self, tool_call: protocol.ToolCall) -> None:
+        """Pick up state the agent only reports through tool calls."""
+        match tool_call:
+            # Cursor switches mode with this tool, without sending `current_mode_update`.
+            case {
+                "kind": "switch_mode",
+                "status": "completed",
+                "rawInput": {"targetModeId": str(mode_id)},
+            }:
+                self.post_message(messages.ModeUpdate(mode_id))
+
+        for content in tool_call.get("content") or []:
+            match content:
+                case {"type": "content", "content": {"type": "text", "text": str(text)}}:
+                    if match := PLAN_SAVED_RE.search(text):
+                        self._plan_path = Path(unquote(urlparse(match.group(1)).path))
+
+    @jsonrpc.expose("cursor/create_plan")
+    async def rpc_cursor_create_plan(
+        self,
+        toolCallId: str,
+        plan: str,
+        name: str | None = None,
+        overview: str | None = None,
+        _meta: dict | None = None,
+    ) -> dict[str, dict[str, str]]:
+        """Cursor extension: ask the user to approve a plan.
+
+        https://cursor.com/docs/cli/acp
+        """
+        sections = [f"# {name}" if name else "", overview or "", plan]
+        self._plan_markdown = "\n\n".join(section for section in sections if section)
+        result_future: asyncio.Future[bool] = asyncio.Future()
+        self.post_message(messages.CreatePlan(self._plan_markdown, result_future))
+        if await result_future:
+            return {"outcome": {"outcome": "accepted"}}
+        return {"outcome": {"outcome": "rejected"}}
+
+    def get_plan(self) -> str | None:
+        if self._plan_path is not None:
+            with suppress(OSError):
+                return self._plan_path.read_text(encoding="utf-8")
+        return self._plan_markdown
+
+    def get_file_edits(self) -> list[tuple[str, str | None, str]]:
+        edits: dict[str, tuple[str | None, str]] = {}
+        for tool_call in self.tool_calls.values():
+            if tool_call.get("status") == "failed":
+                continue
+            for content in tool_call.get("content") or []:
+                match content:
+                    case {"type": "diff", "path": str(path), "newText": str(new_text)}:
+                        if path in edits:
+                            edits[path] = (edits[path][0], new_text)
+                        else:
+                            edits[path] = (content.get("oldText"), new_text)
+        return [
+            (path, before, after)
+            for path, (before, after) in edits.items()
+            if before != after
+        ]
 
     def update_status_line(self) -> None:
         """Update the current status line."""

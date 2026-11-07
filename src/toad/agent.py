@@ -58,6 +58,18 @@ class AgentBase(ABC):
         """
         return "Model selection is not supported by this agent"
 
+    def get_plan(self) -> str | None:
+        """Get the most recent plan the agent shared, as Markdown."""
+        return None
+
+    def get_file_edits(self) -> list[tuple[str, str | None, str]]:
+        """Get the net edit of every file changed in this session.
+
+        Returns:
+            A list of (path, text before the session, text now) tuples.
+        """
+        return []
+
     async def cancel(self) -> bool:
         """Cancel prompt.
 
