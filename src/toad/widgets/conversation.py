@@ -320,6 +320,12 @@ class Conversation(containers.Vertical):
             tooltip="Open the mode switcher",
         ),
         Binding(
+            "ctrl+l",
+            "model_switcher",
+            "Model",
+            tooltip="Open the model switcher",
+        ),
+        Binding(
             "ctrl+c",
             "interrupt",
             "Interrupt",
@@ -349,6 +355,8 @@ class Conversation(containers.Vertical):
     agent_ready: var[bool] = var(False)
     modes: var[dict[str, Mode]] = var({}, bindings=True)
     current_mode: var[Mode | None] = var(None)
+    models: var[dict[str, str]] = var({}, bindings=True)
+    current_model: var[str | None] = var(None)
     turn: var[Literal["agent", "client"] | None] = var(None, bindings=True)
     status: var[str | Content] = var("")
     column: var[bool] = var(False, toggle_class="-column")
@@ -505,6 +513,8 @@ class Conversation(containers.Vertical):
             agent_ready=Conversation.agent_ready,
             current_mode=Conversation.current_mode,
             modes=Conversation.modes,
+            current_model=Conversation.current_model,
+            models=Conversation.models,
             status=Conversation.status,
         )
 
@@ -616,6 +626,8 @@ class Conversation(containers.Vertical):
             return None if self._terminal is None else True
         if action == "mode_switcher":
             return bool(self.modes)
+        if action == "model_switcher":
+            return bool(self.models)
         if action == "cancel":
             return True if (self.agent and self.turn == "agent") else None
         if action in {"expand_block", "collapse_block"}:
@@ -785,6 +797,11 @@ class Conversation(containers.Vertical):
     @on(messages.ChangeMode)
     async def on_change_mode(self, event: messages.ChangeMode) -> None:
         await self.set_mode(event.mode_id)
+
+    @work
+    @on(messages.ChangeModel)
+    async def on_change_model(self, event: messages.ChangeModel) -> None:
+        await self.set_model(event.model_id)
 
     @on(acp_messages.ModeUpdate)
     def on_mode_update(self, event: acp_messages.ModeUpdate) -> None:
@@ -1149,10 +1166,31 @@ class Conversation(containers.Vertical):
                     style="success",
                 )
 
+    async def set_model(self, model_id: str | None) -> None:
+        """Set the model given its id, if the agent supports it."""
+        if (agent := self.agent) is None or model_id is None:
+            return
+        if (error := await agent.set_model(model_id)) is not None:
+            self.notify(error, title="Set Model", severity="error")
+        else:
+            self.current_model = model_id
+            self.flash(
+                Content.from_markup(
+                    "Model changed to [b]$model",
+                    model=self.models.get(model_id, model_id),
+                ),
+                style="success",
+            )
+
     @on(acp_messages.SetModes)
     async def on_acp_set_modes(self, message: acp_messages.SetModes):
         self.modes = message.modes
         self.current_mode = self.modes[message.current_mode]
+
+    @on(acp_messages.SetModels)
+    def on_acp_set_models(self, message: acp_messages.SetModels):
+        self.models = message.models
+        self.current_model = message.current_model
 
     @on(messages.HistoryMove)
     async def on_history_move(self, message: messages.HistoryMove) -> None:
@@ -1840,6 +1878,9 @@ class Conversation(containers.Vertical):
 
     async def action_mode_switcher(self) -> None:
         self.prompt.mode_switcher.focus()
+
+    async def action_model_switcher(self) -> None:
+        self.prompt.model_switcher.focus()
 
     def refresh_block_cursor(self) -> None:
         if (cursor_block := self.cursor_block_child) is not None:

@@ -58,6 +58,11 @@ class ChangeMode(Message):
 
 
 @dataclass
+class ChangeModel(Message):
+    model_id: str | None
+
+
+@dataclass
 class Flash(Message):
     """Request a message flash.
 

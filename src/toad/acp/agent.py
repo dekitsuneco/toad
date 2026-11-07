@@ -134,6 +134,7 @@ class Agent(AgentBase):
 
         self._agent_data = agent
         self.session_id = session_id
+        self._model_config_id: str | None = None
 
         self.server = jsonrpc.Server()
         self.server.expose_instance(self)
@@ -342,6 +343,12 @@ class Agent(AgentBase):
 
             case {"sessionUpdate": "current_mode_update", "currentModeId": mode_id}:
                 self.post_message(messages.ModeUpdate(mode_id))
+
+            case {
+                "sessionUpdate": "config_option_update",
+                "configOptions": config_options,
+            }:
+                self._update_config_options(config_options)
 
             case {"sessionUpdate": "usage_update", "used": used, "size": size}:
                 match update.get("cost"):
@@ -779,6 +786,8 @@ class Agent(AgentBase):
             }
             self.post_message(messages.SetModes(current_mode, modes_update))
 
+        self._update_models(response)
+
     async def acp_load_session(self) -> None:
         assert self.session_id is not None, "Session id must be set"
         cwd = str(self.project_root_path)
@@ -806,6 +815,8 @@ class Agent(AgentBase):
                 for mode in available_modes
             }
             self.post_message(messages.SetModes(current_mode, modes_update))
+
+        self._update_models(response)
 
     async def acp_session_prompt(
         self, prompt: list[protocol.ContentBlock]
@@ -868,6 +879,86 @@ class Agent(AgentBase):
 
     async def set_mode(self, mode_id: str) -> str | None:
         return await self.acp_session_set_mode(mode_id)
+
+    def _update_models(
+        self, response: protocol.NewSessionResponse | protocol.LoadSessionResponse
+    ) -> None:
+        """Publish available models from a session/new or session/load response.
+
+        Config options are preferred; the unstable `models` field is a fallback.
+        """
+        if (config_options := response.get("configOptions", None)) is not None:
+            self._update_config_options(config_options)
+        elif (model_state := response.get("models", None)) is not None:
+            self._model_config_id = None
+            models = {
+                model["modelId"]: model["name"]
+                for model in model_state["availableModels"]
+            }
+            self.post_message(
+                messages.SetModels(model_state["currentModelId"], models)
+            )
+
+    def _update_config_options(
+        self, config_options: list[protocol.ConfigOption]
+    ) -> None:
+        """Publish the model selector from a complete list of config options."""
+        model_option = self._find_model_option(config_options)
+        if model_option is None:
+            self._model_config_id = None
+            self.post_message(messages.SetModels(None, {}))
+            return
+        self._model_config_id = model_option["id"]
+        models: dict[str, str] = {}
+        for entry in model_option.get("options") or []:
+            choices = entry["options"] if "group" in entry else [entry]
+            for choice in choices:
+                models[choice["value"]] = choice["name"]
+        current_model = model_option.get("currentValue")
+        self.post_message(
+            messages.SetModels(
+                current_model if isinstance(current_model, str) else None, models
+            )
+        )
+
+    @staticmethod
+    def _find_model_option(
+        config_options: list[protocol.ConfigOption],
+    ) -> protocol.ConfigOption | None:
+        """Find the model selector, by category first (as the spec intends), then by id."""
+        selects = [
+            option for option in config_options if option.get("type") == "select"
+        ]
+        for option in selects:
+            if option.get("category") == "model":
+                return option
+        for option in selects:
+            if option.get("id") == "model":
+                return option
+        return None
+
+    async def acp_session_set_model(self, model_id: str) -> str | None:
+        """Update the current model with the agent."""
+        with self.request():
+            if self._model_config_id is not None:
+                response = api.session_set_config_option(
+                    self.session_id, self._model_config_id, model_id
+                )
+            else:
+                response = api.session_set_model(self.session_id, model_id)
+        try:
+            result = await response.wait()
+        except jsonrpc.APIError as error:
+            match error.data:
+                case {"details": details}:
+                    return details if isinstance(details, str) else "Failed to set model"
+            return "Failed to set model"
+        if result and (config_options := result.get("configOptions")) is not None:
+            self._update_config_options(config_options)
+        return None
+
+    async def set_model(self, model_id: str) -> str | None:
+        return await self.acp_session_set_model(model_id)
 
     async def set_session_name(self, name: str) -> None:
         if self.session_pk is None:

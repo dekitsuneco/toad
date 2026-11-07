@@ -146,6 +146,14 @@ class ModeUpdate(AgentMessage):
 
 
 @dataclass
+class SetModels(AgentMessage):
+    """Set available models from the agent."""
+
+    current_model: str | None
+    models: dict[str, str]
+
+
+@dataclass
 class UsageUpdage(AgentMessage):
     """Context window change"""
 

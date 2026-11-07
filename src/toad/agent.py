@@ -47,6 +47,17 @@ class AgentBase(ABC):
             str: The stop reason.
         """
 
+    async def set_model(self, model_id: str) -> str | None:
+        """Switch the model used by the agent.
+
+        Args:
+            model_id: Model id.
+
+        Returns:
+            An error message, or `None` on success.
+        """
+        return "Model selection is not supported by this agent"
+
     async def cancel(self) -> bool:
         """Cancel prompt.
 

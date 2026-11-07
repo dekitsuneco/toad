@@ -53,3 +53,17 @@ def session_prompt(
 def session_set_mode(sessionId: str, modeId: str) -> protocol.SetSessionModeResponse:
     """https://agentclientprotocol.com/protocol/session-modes#from-the-client"""
     ...
+
+
+@API.method(name="session/set_model")
+def session_set_model(sessionId: str, modelId: str) -> protocol.SetSessionModelResponse:
+    """Unstable: superseded by `session/set_config_option`."""
+    ...
+
+
+@API.method(name="session/set_config_option")
+def session_set_config_option(
+    sessionId: str, configId: str, value: str
+) -> protocol.SetSessionConfigOptionResponse:
+    """https://agentclientprotocol.com/protocol/session-config-options#from-the-client"""
+    ...

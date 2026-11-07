@@ -51,6 +51,19 @@ class ModeSwitcher(OptionList):
         self.blur()
 
 
+class ModelSwitcher(OptionList):
+    BINDING_GROUP_TITLE = "Model switcher"
+    BINDINGS = [Binding("escape", "dismiss", "Dismiss model switcher")]
+
+    @on(OptionList.OptionSelected)
+    def on_option_selected(self, event: OptionList.OptionSelected):
+        self.post_message(messages.ChangeModel(event.option_id))
+        self.blur()
+
+    def action_dismiss(self):
+        self.blur()
+
+
 class InvokeFileSearch(Message):
     pass
 
@@ -64,6 +77,10 @@ class AgentInfo(Label):
 
 
 class ModeInfo(Label):
+    pass
+
+
+class ModelInfo(Label):
     pass
 
 
@@ -446,6 +463,7 @@ class Prompt(containers.VerticalGroup):
     slash_complete = getters.query_one(SlashComplete)
     question = getters.query_one(Question)
     mode_switcher = getters.query_one(ModeSwitcher)
+    model_switcher = getters.query_one(ModelSwitcher)
 
     slash_commands: var[list[SlashCommand]] = var(list)
     shell_mode = var(False)
@@ -460,6 +478,8 @@ class Prompt(containers.VerticalGroup):
     agent_ready: var[bool] = var(False)
     current_mode: var[Mode | None] = var(None)
     modes: var[dict[str, Mode] | None] = var(None)
+    current_model: var[str | None] = var(None)
+    models: var[dict[str, str] | None] = var(None)
     status: var[str | Content] = var("")
 
     app = getters.app(ToadApp)
@@ -518,6 +538,10 @@ class Prompt(containers.VerticalGroup):
     def on_click(self):
         self.mode_switcher.focus()
 
+    @on(events.Click, "ModelInfo")
+    def on_click_model(self):
+        self.model_switcher.focus()
+
     def watch_modes(self, modes: dict[str, Mode] | None) -> None:
         from toad.visuals.columns import Columns
 
@@ -543,6 +567,44 @@ class Prompt(containers.VerticalGroup):
         if self.current_mode is not None:
             self.mode_switcher.highlighted = self.mode_switcher.get_option_index(
                 self.current_mode.id
+            )
+
+    def watch_current_model(self) -> None:
+        self.refresh_models()
+
+    def watch_models(self) -> None:
+        self.refresh_models()
+
+    def refresh_models(self) -> None:
+        """Sync the model pill and switcher with `models` and `current_model`."""
+        from toad.visuals.columns import Columns
+
+        models = self.models or {}
+        current_model = self.current_model
+        self.set_class(current_model is not None, "-has-model")
+        if current_model is not None:
+            tooltip = Content.from_markup("[dim](click to open model switcher)")
+            self.query_one(ModelInfo).with_tooltip(tooltip).update(
+                models.get(current_model, current_model)
+            )
+
+        columns = Columns("auto", "auto", "flex")
+        for value, name in models.items():
+            columns.add_row(
+                (
+                    Content.styled("✔", "$text-success")
+                    if current_model == value
+                    else ""
+                ),
+                Content.from_markup("[bold]$name[/]", name=name),
+                Content.styled(value, "dim"),
+            )
+        self.model_switcher.set_options(
+            [Option(row, id=value) for row, value in zip(columns, models)]
+        )
+        if current_model in models:
+            self.model_switcher.highlighted = self.model_switcher.get_option_index(
+                current_model
             )
 
     def watch_agent_ready(self, ready: bool) -> None:
@@ -770,6 +832,8 @@ class Prompt(containers.VerticalGroup):
             yield StatusLine(markup=False).data_bind(status=Prompt.status)
             yield ModeSwitcher()
             yield ModeInfo("mode")
+            yield ModelSwitcher()
+            yield ModelInfo("model")
 
     def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
         return True
