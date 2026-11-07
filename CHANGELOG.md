@@ -13,13 +13,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Mode picker for ACP agents that only advertise modes via Session Config Options (e.g. OpenCode build/plan): reads the `mode` category, switches via `session/set_config_option` (or `session/set_mode`), shown as the existing mode pill, opened with ctrl+o
 - Cursor plan approval: `cursor/create_plan` shows the plan with an Accept/Reject question (previously rejected as an unknown method)
 - `/toad:plan` shows the latest plan from the agent (Cursor's saved `.plan.md` file when available)
-- `/toad:diff` shows the net diff of every file the agent edited in the session
 - `tools.expand_diffs` setting (on by default): tool calls that edit files are expanded so their diffs are visible
+- Changes view: the sidebar lists every file the agent edited, with added and removed line counts. ctrl+g, `/toad:diff` or selecting a file opens a screen with the net diff of each file
+- Session tabs show the title the agent sends (`session_info_update`), or the first prompt when it doesn't. Double-click a tab (or `/toad:rename`) to rename it; a manual name is kept. Tabs are prefixed with a small glyph for the agent
+- File viewer: clicking a file in the project tree opens it with syntax highlighting (including TypeScript and TSX), editing, ctrl+s to save, and the git blame of the current line. ctrl+t adds the file to the prompt, ctrl+o opens it in `$EDITOR` or Cursor, and `a` in the tree adds a file without opening it
 
 ### Changed
 
 - The mode pill follows Cursor's `switch_mode` tool (e.g. Plan → Agent after a plan is approved), which Cursor reports without `current_mode_update`
 - Mode and model pills are shown side by side instead of overlapping
+- Clicking a file in the project tree opens it instead of attaching it to the prompt
 
 - Style tweak for compact prompt
 - Fix for overly wide question text

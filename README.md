@@ -4,13 +4,15 @@
 > **This is an unofficial fork** of [batrachianai/toad](https://github.com/batrachianai/toad) by Will McGugan, based on version 0.6.20.
 > It is not affiliated with or endorsed by the upstream project.
 >
-> **Modifications** (2026-11-07): adds model and mode pickers and plan/diff tools for ACP agents. Selectors advertised via
+> **Modifications** (2026-11-07): adds model and mode pickers, a Changes view, a file viewer and plan tools for ACP agents. Selectors advertised via
 > [Session Config Options](https://agentclientprotocol.com/protocol/session-config-options) (e.g. `opencode acp`), or via the
 > legacy `models` / `modes` fields, are shown as pills next to the prompt.
 > Press <kbd>ctrl</kbd>+<kbd>l</kbd> (or click the model pill) to switch models;
 > press <kbd>ctrl</kbd>+<kbd>o</kbd> (or click the mode pill) to switch modes (build/plan in OpenCode, Agent/Ask/Plan in Cursor).
-> Also: Cursor plans can be accepted or rejected in Toad, `/toad:plan` shows the latest plan, `/toad:diff` shows every file
-> the agent changed in the session, and file edits are expanded by default (setting `tools.expand_diffs`).
+> Also: Cursor plans can be accepted or rejected in Toad, `/toad:plan` shows the latest plan, and
+> <kbd>ctrl</kbd>+<kbd>g</kbd> (or `/toad:diff`) opens every file the agent changed. Session tabs take the agent's title
+> (double-click a tab to rename it). Clicking a file in the sidebar opens it: edit and save with <kbd>ctrl</kbd>+<kbd>s</kbd>,
+> the blame of the current line is shown below, <kbd>ctrl</kbd>+<kbd>t</kbd> adds the file to the prompt.
 > See [CHANGELOG.md](./CHANGELOG.md) and the git history for the full list of changes.
 >
 > Like the original, this fork is licensed under the [GNU AGPL-3.0](./LICENSE). The commercial license mentioned in
