@@ -186,8 +186,28 @@ class MainScreen(Screen, can_focus=False):
 
     @on(DirectoryTree.FileSelected, "ProjectDirectoryTree")
     def on_project_directory_tree_selected(self, event: Tree.NodeSelected):
-        if (data := event.node.data) is not None:
-            self.conversation.insert_path_into_prompt(data.path)
+        from toad.screens.file_viewer import FileViewerScreen
+
+        if (data := event.node.data) is None:
+            return
+
+        def add_to_prompt(path: Path | None) -> None:
+            if path is not None:
+                self.add_path_to_prompt(path)
+
+        self.app.push_screen(
+            FileViewerScreen(Path(data.path), self.project_path), add_to_prompt
+        )
+
+    @on(ProjectDirectoryTree.AddToPrompt)
+    def on_project_directory_tree_add_to_prompt(
+        self, event: ProjectDirectoryTree.AddToPrompt
+    ) -> None:
+        self.add_path_to_prompt(event.path)
+
+    def add_path_to_prompt(self, path: Path) -> None:
+        self.conversation.insert_path_into_prompt(path)
+        self.conversation.focus_prompt()
 
     @on(acp_messages.Plan)
     async def on_acp_plan(self, message: acp_messages.Plan):
