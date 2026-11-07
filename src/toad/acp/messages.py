@@ -134,7 +134,7 @@ class WaitForTerminalExit(AgentMessage):
 class SetModes(AgentMessage):
     """Set modes from agent."""
 
-    current_mode: str
+    current_mode: str | None
     modes: dict[str, Mode]
 
 
