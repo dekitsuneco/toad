@@ -524,19 +524,20 @@ Prompt {
         
         ModeInfo {
             padding: 0 1;
-            margin: 0 0;
+            margin: 0 0 0 1;
+            width: auto;
             color: $text-secondary;
             background: $secondary 10%;
-            dock: right; 
             display: none;
         }        
 
         ModelInfo {
             padding: 0 1;
-            margin: 0 0;
+            margin: 0 0 0 1;
+            width: auto;
+            text-wrap: nowrap;
             color: $text-secondary;
             background: $secondary 10%;
-            dock: right; 
             display: none;
         }        
     }
