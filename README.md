@@ -4,21 +4,13 @@
 > **This is an unofficial fork** of [batrachianai/toad](https://github.com/batrachianai/toad) by Will McGugan, based on version 0.6.20.
 > It is not affiliated with or endorsed by the upstream project.
 >
-> **Modifications** (2026-11-07): adds model and mode pickers, a Changes view, a file viewer and plan tools for ACP agents. Selectors advertised via
-> [Session Config Options](https://agentclientprotocol.com/protocol/session-config-options) (e.g. `opencode acp`), or via the
-> legacy `models` / `modes` fields, are shown as pills next to the prompt.
-> Press <kbd>ctrl</kbd>+<kbd>l</kbd> (or click the model pill) to switch models;
-> press <kbd>ctrl</kbd>+<kbd>o</kbd> (or click the mode pill) to switch modes (build/plan in OpenCode, Agent/Ask/Plan in Cursor).
-> Also: Cursor plans can be accepted or rejected in Toad, `/toad:plan` shows the latest plan, and
-> <kbd>ctrl</kbd>+<kbd>g</kbd> (or `/toad:diff`) opens every file the agent changed. Session tabs take the agent's title
-> (double-click a tab to rename it). Clicking a file in the sidebar opens it: edit and save with <kbd>ctrl</kbd>+<kbd>s</kbd>,
-> the blame of the current line is shown below, <kbd>ctrl</kbd>+<kbd>t</kbd> adds the file to the prompt.
-> See [CHANGELOG.md](./CHANGELOG.md) and the git history for the full list of changes.
+> **Modifications** (2026-11-07 through 2026-11-08): model and mode pickers, Cursor plan approval, a Changes view, session titles, and a file viewer.
+> [What this fork changes](./FORK.md) lists every difference from upstream, with the keys. The running log is [CHANGELOG.md](./CHANGELOG.md).
 >
 > Like the original, this fork is licensed under the [GNU AGPL-3.0](./LICENSE). The commercial license mentioned in
 > [COMMERCIAL_LICENSE.md](./COMMERCIAL_LICENSE.md) is offered by the upstream author only and does not cover this fork's changes.
 >
-> To run this fork from source: `uv run toad` (or `pip install git+https://github.com/dekitsuneco/toad.git`).
+> To run this fork: `pip install git+https://github.com/dekitsuneco/toad.git` (or `uv tool install --editable` on a local checkout).
 
 A unified interface for AI in your terminal ([release announcement](https://willmcgugan.github.io/toad-released/)).
 
