@@ -66,6 +66,10 @@ class CreatePlan(AgentMessage):
     result_future: Future[bool]
 
 
+class FileEditsChanged(AgentMessage):
+    """A tool call reported a file edit, so `Agent.get_file_edits` has changed."""
+
+
 @dataclass
 class SessionTitle(AgentMessage):
     """The agent named the session, or a saved session was loaded with a name."""

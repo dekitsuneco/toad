@@ -1452,7 +1452,7 @@ class Conversation(containers.Vertical):
             ),
             SlashCommand(
                 "/toad:diff",
-                "Show every file the agent changed in this session",
+                "Show every file the agent changed in this session (ctrl+g)",
             ),
             SlashCommand(
                 "/toad:plan",
@@ -2058,24 +2058,7 @@ class Conversation(containers.Vertical):
                 )
             return True
         elif command == "toad:diff":
-            from toad.widgets.markdown_note import MarkdownNote
-
-            edits = self.agent.get_file_edits() if self.agent is not None else []
-            if not edits:
-                self.notify(
-                    "The agent hasn't changed any files in this session",
-                    title="/toad:diff",
-                    severity="warning",
-                )
-                return True
-            await self.post(
-                MarkdownNote(f"**{len(edits)} file(s) changed in this session**")
-            )
-            project_path = Path(self.project_path)
-            for path, before, after in edits:
-                with suppress(ValueError):
-                    path = str(Path(path).relative_to(project_path))
-                await self.post_diff(path, before, after)
+            await self.run_action("screen.show_changes")
             return True
         elif command == "toad:session-close":
             if self.turn == "agent" and self.agent is not None:

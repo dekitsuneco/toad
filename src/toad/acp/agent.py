@@ -386,11 +386,16 @@ class Agent(AgentBase):
             }:
                 self.post_message(messages.ModeUpdate(mode_id))
 
+        has_diff = False
         for content in tool_call.get("content") or []:
             match content:
                 case {"type": "content", "content": {"type": "text", "text": str(text)}}:
                     if match := PLAN_SAVED_RE.search(text):
                         self._plan_path = Path(unquote(urlparse(match.group(1)).path))
+                case {"type": "diff"}:
+                    has_diff = True
+        if has_diff:
+            self.post_message(messages.FileEditsChanged())
 
     @jsonrpc.expose("cursor/create_plan")
     async def rpc_cursor_create_plan(

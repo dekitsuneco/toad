@@ -11,7 +11,7 @@ from textual.content import Content
 from textual.events import ScreenResume
 from textual.screen import Screen
 from textual.reactive import var, reactive
-from textual.widgets import Footer, OptionList, DirectoryTree, Tree
+from textual.widgets import Collapsible, Footer, OptionList, DirectoryTree, Tree
 from textual import containers
 from textual.widget import Widget
 
@@ -21,6 +21,7 @@ from toad import messages
 from toad.agent_schema import Agent
 from toad.acp import messages as acp_messages
 
+from toad.widgets.changes import ChangesList, get_file_changes
 from toad.widgets.plan import Plan
 from toad.widgets.throbber import Throbber
 from toad.widgets.conversation import Conversation
@@ -73,6 +74,7 @@ class MainScreen(Screen, can_focus=False):
     SESSION_NAVIGATION_GROUP = Binding.Group(description="Sessions")
     BINDINGS = [
         Binding("ctrl+b,f20", "show_sidebar", "Sidebar"),
+        Binding("ctrl+g", "show_changes", "Changes"),
         Binding("ctrl+h", "go_home", "Home"),
         Binding(
             "ctrl+left_square_bracket",
@@ -140,6 +142,7 @@ class MainScreen(Screen, can_focus=False):
         with containers.Center():
             yield SideBar(
                 SideBar.Panel("Plan", Plan([])),
+                SideBar.Panel("Changes", ChangesList(), id="changes-panel"),
                 SideBar.Panel(
                     "Project",
                     ProjectDirectoryTree(
@@ -198,6 +201,36 @@ class MainScreen(Screen, can_focus=False):
             for entry in message.entries
         ]
         self.query_one("SideBar Plan", Plan).entries = entries
+
+    def get_file_changes(self):
+        agent = self.conversation.agent
+        edits = agent.get_file_edits() if agent is not None else []
+        return get_file_changes(edits, self.project_path)
+
+    @on(acp_messages.FileEditsChanged)
+    def on_file_edits_changed(self, message: acp_messages.FileEditsChanged) -> None:
+        message.stop()
+        changes = self.get_file_changes()
+        self.query_one(ChangesList).changes = changes
+        panel = self.query_one("#changes-panel", Collapsible)
+        panel.title = f"Changes ({len(changes)})" if changes else "Changes"
+
+    @on(ChangesList.Open)
+    def on_changes_list_open(self, message: ChangesList.Open) -> None:
+        message.stop()
+        self.action_show_changes(message.path)
+
+    def action_show_changes(self, path: str | None = None) -> None:
+        from toad.screens.changes import ChangesScreen
+
+        if not (changes := self.get_file_changes()):
+            self.notify(
+                "The agent hasn't changed any files in this session",
+                title="Changes",
+                severity="warning",
+            )
+            return
+        self.app.push_screen(ChangesScreen(changes, path))
 
     @on(messages.SessionUpdate)
     async def on_session_update(self, event: messages.SessionUpdate) -> None:
