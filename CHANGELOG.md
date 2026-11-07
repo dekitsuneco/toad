@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- Model picker for ACP agents (fork of batrachianai/toad, 2026-11-07): reads the `model` category from Session Config Options (or the legacy `models` field), switches via `session/set_config_option` (or `session/set_model`), shown as a pill next to the prompt, opened with ctrl+l or by clicking the pill
+
 ### Changed
 
 - Style tweak for compact prompt

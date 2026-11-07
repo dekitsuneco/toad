@@ -1,7 +1,7 @@
 [project]
 name = "batrachian-toad"
 version = "0.6.20"
-description = "A unified experience for AI in your terminal."
+description = "Unofficial fork of Toad (batrachianai/toad) with a model picker for ACP agents. A unified experience for AI in your terminal."
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [

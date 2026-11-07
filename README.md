@@ -1,5 +1,19 @@
 # Toad
 
+> [!NOTE]
+> **This is an unofficial fork** of [batrachianai/toad](https://github.com/batrachianai/toad) by Will McGugan, based on version 0.6.20.
+> It is not affiliated with or endorsed by the upstream project.
+>
+> **Modifications** (2026-11-07): adds a model picker for ACP agents. Models advertised by the agent via
+> [Session Config Options](https://agentclientprotocol.com/protocol/session-config-options) (e.g. `opencode acp`), or via the
+> legacy unstable `models` field, are shown as a pill next to the prompt. Press <kbd>ctrl</kbd>+<kbd>l</kbd> or click the pill to switch
+> models mid-session. See [CHANGELOG.md](./CHANGELOG.md) and the git history for the full list of changes.
+>
+> Like the original, this fork is licensed under the [GNU AGPL-3.0](./LICENSE). The commercial license mentioned in
+> [COMMERCIAL_LICENSE.md](./COMMERCIAL_LICENSE.md) is offered by the upstream author only and does not cover this fork's changes.
+>
+> To run this fork from source: `uv run toad` (or `pip install git+https://github.com/dekitsuneco/toad.git`).
+
 A unified interface for AI in your terminal ([release announcement](https://willmcgugan.github.io/toad-released/)).
 
 <table>
