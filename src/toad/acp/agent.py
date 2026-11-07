@@ -135,6 +135,7 @@ class Agent(AgentBase):
         self._agent_data = agent
         self.session_id = session_id
         self._model_config_id: str | None = None
+        self._mode_config_id: str | None = None
 
         self.server = jsonrpc.Server()
         self.server.expose_instance(self)
@@ -775,18 +776,7 @@ class Agent(AgentBase):
                 },
             )
 
-        if (modes := response.get("modes", None)) is not None:
-            current_mode = modes["currentModeId"]
-            available_modes = modes["availableModes"]
-            modes_update = {
-                mode["id"]: Mode(
-                    mode["id"], mode["name"], mode.get("description", None)
-                )
-                for mode in available_modes
-            }
-            self.post_message(messages.SetModes(current_mode, modes_update))
-
-        self._update_models(response)
+        self._apply_session_selectors(response)
 
     async def acp_load_session(self) -> None:
         assert self.session_id is not None, "Session id must be set"
@@ -805,18 +795,7 @@ class Agent(AgentBase):
             session_load_response = api.session_load(cwd, [], self.session_id)
         response = await session_load_response.wait()
 
-        if (modes := response.get("modes", None)) is not None:
-            current_mode = modes["currentModeId"]
-            available_modes = modes["availableModes"]
-            modes_update = {
-                mode["id"]: Mode(
-                    mode["id"], mode["name"], mode.get("description", None)
-                )
-                for mode in available_modes
-            }
-            self.post_message(messages.SetModes(current_mode, modes_update))
-
-        self._update_models(response)
+        self._apply_session_selectors(response)
 
     async def acp_session_prompt(
         self, prompt: list[protocol.ContentBlock]
@@ -866,31 +845,39 @@ class Agent(AgentBase):
     async def acp_session_set_mode(self, mode_id: str) -> str | None:
         """Update the current mode with the agent."""
         with self.request():
-            response = api.session_set_mode(self.session_id, mode_id)
+            if self._mode_config_id is not None:
+                response = api.session_set_config_option(
+                    self.session_id, self._mode_config_id, mode_id
+                )
+            else:
+                response = api.session_set_mode(self.session_id, mode_id)
         try:
-            await response.wait()
+            result = await response.wait()
         except jsonrpc.APIError as error:
             match error.data:
                 case {"details": details}:
                     return details if isinstance(details, str) else "Failed to set mode"
             return "Failed to set mode"
-        else:
-            return None
+        if result and (config_options := result.get("configOptions")) is not None:
+            self._update_config_options(config_options)
+        return None
 
     async def set_mode(self, mode_id: str) -> str | None:
         return await self.acp_session_set_mode(mode_id)
 
-    def _update_models(
+    def _apply_session_selectors(
         self, response: protocol.NewSessionResponse | protocol.LoadSessionResponse
     ) -> None:
-        """Publish available models from a session/new or session/load response.
+        """Publish models and modes from a session/new or session/load response.
 
-        Config options are preferred; the unstable `models` field is a fallback.
+        Config options are preferred; the legacy `models` / `modes` fields are a fallback.
         """
         if (config_options := response.get("configOptions", None)) is not None:
             self._update_config_options(config_options)
-        elif (model_state := response.get("models", None)) is not None:
-            self._model_config_id = None
+            return
+        self._model_config_id = None
+        self._mode_config_id = None
+        if (model_state := response.get("models", None)) is not None:
             models = {
                 model["modelId"]: model["name"]
                 for model in model_state["availableModels"]
@@ -898,22 +885,39 @@ class Agent(AgentBase):
             self.post_message(
                 messages.SetModels(model_state["currentModelId"], models)
             )
+        if (mode_state := response.get("modes", None)) is not None:
+            self.post_message(
+                messages.SetModes(
+                    mode_state["currentModeId"],
+                    {
+                        mode["id"]: Mode(
+                            mode["id"], mode["name"], mode.get("description", None)
+                        )
+                        for mode in mode_state["availableModes"]
+                    },
+                )
+            )
 
     def _update_config_options(
         self, config_options: list[protocol.ConfigOption]
     ) -> None:
-        """Publish the model selector from a complete list of config options."""
-        model_option = self._find_model_option(config_options)
+        """Publish model and mode selectors from a complete list of config options."""
+        self._publish_config_models(config_options)
+        self._publish_config_modes(config_options)
+
+    def _publish_config_models(
+        self, config_options: list[protocol.ConfigOption]
+    ) -> None:
+        model_option = self._find_select_option(config_options, "model", "model")
         if model_option is None:
             self._model_config_id = None
             self.post_message(messages.SetModels(None, {}))
             return
         self._model_config_id = model_option["id"]
-        models: dict[str, str] = {}
-        for entry in model_option.get("options") or []:
-            choices = entry["options"] if "group" in entry else [entry]
-            for choice in choices:
-                models[choice["value"]] = choice["name"]
+        models = {
+            choice["value"]: choice["name"]
+            for choice in self._flatten_select_choices(model_option.get("options"))
+        }
         current_model = model_option.get("currentValue")
         self.post_message(
             messages.SetModels(
@@ -921,19 +925,58 @@ class Agent(AgentBase):
             )
         )
 
+    def _publish_config_modes(
+        self, config_options: list[protocol.ConfigOption]
+    ) -> None:
+        mode_option = self._find_select_option(config_options, "mode", "mode")
+        if mode_option is None:
+            self._mode_config_id = None
+            self.post_message(messages.SetModes(None, {}))
+            return
+        self._mode_config_id = mode_option["id"]
+        modes = {
+            choice["value"]: Mode(
+                choice["value"], choice["name"], choice.get("description")
+            )
+            for choice in self._flatten_select_choices(mode_option.get("options"))
+        }
+        current_mode = mode_option.get("currentValue")
+        self.post_message(
+            messages.SetModes(
+                current_mode if isinstance(current_mode, str) else None, modes
+            )
+        )
+
     @staticmethod
-    def _find_model_option(
+    def _flatten_select_choices(
+        options: list[protocol.ConfigOptionChoice] | list[protocol.ConfigOptionGroup] | None,
+    ) -> list[protocol.ConfigOptionChoice]:
+        """Flatten grouped or flat select options into a list of choices."""
+        if not options:
+            return []
+        choices: list[protocol.ConfigOptionChoice] = []
+        for entry in options:
+            if "group" in entry:
+                choices.extend(entry.get("options") or [])
+            else:
+                choices.append(entry)
+        return choices
+
+    @staticmethod
+    def _find_select_option(
         config_options: list[protocol.ConfigOption],
+        category: str,
+        fallback_id: str,
     ) -> protocol.ConfigOption | None:
-        """Find the model selector, by category first (as the spec intends), then by id."""
+        """Find a select option by category first (as the spec intends), then by id."""
         selects = [
             option for option in config_options if option.get("type") == "select"
         ]
         for option in selects:
-            if option.get("category") == "model":
+            if option.get("category") == category:
                 return option
         for option in selects:
-            if option.get("id") == "model":
+            if option.get("id") == fallback_id:
                 return option
         return None
 

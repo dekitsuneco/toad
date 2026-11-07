@@ -1185,7 +1185,10 @@ class Conversation(containers.Vertical):
     @on(acp_messages.SetModes)
     async def on_acp_set_modes(self, message: acp_messages.SetModes):
         self.modes = message.modes
-        self.current_mode = self.modes[message.current_mode]
+        if message.current_mode is not None:
+            self.current_mode = self.modes.get(message.current_mode)
+        else:
+            self.current_mode = None
 
     @on(acp_messages.SetModels)
     def on_acp_set_models(self, message: acp_messages.SetModels):
