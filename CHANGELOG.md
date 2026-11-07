@@ -11,8 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Model picker for ACP agents (fork of batrachianai/toad, 2026-11-07): reads the `model` category from Session Config Options (or the legacy `models` field), switches via `session/set_config_option` (or `session/set_model`), shown as a pill next to the prompt, opened with ctrl+l or by clicking the pill
 - Mode picker for ACP agents that only advertise modes via Session Config Options (e.g. OpenCode build/plan): reads the `mode` category, switches via `session/set_config_option` (or `session/set_mode`), shown as the existing mode pill, opened with ctrl+o
+- Cursor plan approval: `cursor/create_plan` shows the plan with an Accept/Reject question (previously rejected as an unknown method)
+- `/toad:plan` shows the latest plan from the agent (Cursor's saved `.plan.md` file when available)
+- `/toad:diff` shows the net diff of every file the agent edited in the session
+- `tools.expand_diffs` setting (on by default): tool calls that edit files are expanded so their diffs are visible
 
 ### Changed
+
+- The mode pill follows Cursor's `switch_mode` tool (e.g. Plan → Agent after a plan is approved), which Cursor reports without `current_mode_update`
+- Mode and model pills are shown side by side instead of overlapping
 
 - Style tweak for compact prompt
 - Fix for overly wide question text
