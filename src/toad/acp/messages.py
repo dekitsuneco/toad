@@ -67,6 +67,15 @@ class CreatePlan(AgentMessage):
 
 
 @dataclass
+class SessionTitle(AgentMessage):
+    """The agent named the session, or a saved session was loaded with a name."""
+
+    title: str
+    saved: bool = False
+    """The title was read from the session history (rather than sent by the agent)."""
+
+
+@dataclass
 class ToolCall(AgentMessage):
     tool_call: protocol.ToolCall
 

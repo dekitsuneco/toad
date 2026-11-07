@@ -25,6 +25,8 @@ class SessionDetails:
     """The current state of the session."""
     summary: str = ""
     """Suplimentary information about the session."""
+    agent: str = ""
+    """Identity of the agent running the session."""
 
     updates: int = 0
     """Track updates to the session details."""
@@ -66,8 +68,11 @@ class SessionTracker:
         subtitle: str | None = None,
         path: str | None = None,
         state: SessionState | None = None,
+        agent: str | None = None,
     ) -> SessionDetails:
         session_details = self.sessions[mode_name]
+        if agent is not None:
+            session_details.agent = agent
         if title is not None:
             session_details.title = title
         if subtitle is not None:

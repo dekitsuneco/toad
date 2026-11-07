@@ -342,6 +342,12 @@ class ConfigOptionUpdate(SchemaDict, total=False, extra_items=Any):
     sessionUpdate: Required[Literal["config_option_update"]]
 
 
+class SessionInfoUpdate(SchemaDict, total=False, extra_items=Any):
+    sessionUpdate: Required[Literal["session_info_update"]]
+    title: str | None
+    updatedAt: str | None
+
+
 class UsageUpdate(SchemaDict, total=False, extra_items=object):
     sessionUpdate: Required[Literal["usage_update"]]
     used: Required[int]
@@ -359,6 +365,7 @@ type SessionUpdate = (
     | AvailableCommandsUpdate
     | CurrentModeUpdate
     | ConfigOptionUpdate
+    | SessionInfoUpdate
     | UsageUpdate
 )
 
