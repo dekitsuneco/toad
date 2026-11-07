@@ -981,6 +981,31 @@ class Conversation(containers.Vertical):
         self._agent_response = None
         self._agent_thought = None
 
+    @on(acp_messages.CreatePlan)
+    async def on_acp_create_plan(self, message: acp_messages.CreatePlan):
+        from toad.widgets.markdown_note import MarkdownNote
+
+        message.stop()
+        await self.post(MarkdownNote(message.markdown))
+        self._agent_response = None
+        self._agent_thought = None
+        self.post_message(messages.SessionUpdate(state="asking"))
+
+        def answer_callback(answer: Answer) -> None:
+            with suppress(asyncio.InvalidStateError):
+                message.result_future.set_result(answer.id == "accept")
+            if not self.prompt.ask_queue:
+                self.post_message(messages.SessionUpdate(state="busy"))
+
+        self.ask(
+            [
+                Answer("Accept plan", "accept", "allow_once"),
+                Answer("Reject plan", "reject", "reject_once"),
+            ],
+            f"{self.agent_title or 'The agent'} would like you to approve this plan",
+            callback=answer_callback,
+        )
+
     @on(acp_messages.Plan)
     async def on_acp_plan(self, message: acp_messages.Plan):
         from toad.widgets.plan import Plan
@@ -1366,6 +1391,14 @@ class Conversation(containers.Vertical):
                 "/toad:clear",
                 "Clear conversation window",
                 "<optional number of lines to preserve>",
+            ),
+            SlashCommand(
+                "/toad:diff",
+                "Show every file the agent changed in this session",
+            ),
+            SlashCommand(
+                "/toad:plan",
+                "Show the latest plan from the agent",
             ),
             SlashCommand(
                 "/toad:rename",
@@ -1951,6 +1984,38 @@ class Conversation(containers.Vertical):
                 await self.agent.set_session_name(name)
                 self.post_message(messages.SessionUpdate(name=name))
                 self.flash(f"Renamed session to [b]'{name}'", style="success")
+            return True
+        elif command == "toad:plan":
+            from toad.widgets.markdown_note import MarkdownNote
+
+            if self.agent is not None and (plan := self.agent.get_plan()):
+                await self.post(MarkdownNote(plan))
+            else:
+                self.notify(
+                    "The agent hasn't shared a plan in this session",
+                    title="/toad:plan",
+                    severity="warning",
+                )
+            return True
+        elif command == "toad:diff":
+            from toad.widgets.markdown_note import MarkdownNote
+
+            edits = self.agent.get_file_edits() if self.agent is not None else []
+            if not edits:
+                self.notify(
+                    "The agent hasn't changed any files in this session",
+                    title="/toad:diff",
+                    severity="warning",
+                )
+                return True
+            await self.post(
+                MarkdownNote(f"**{len(edits)} file(s) changed in this session**")
+            )
+            project_path = Path(self.project_path)
+            for path, before, after in edits:
+                with suppress(ValueError):
+                    path = str(Path(path).relative_to(project_path))
+                await self.post_diff(path, before, after)
             return True
         elif command == "toad:session-close":
             if self.turn == "agent" and self.agent is not None:
